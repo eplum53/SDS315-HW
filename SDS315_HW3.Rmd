@@ -1,6 +1,6 @@
 ---
 title: "SDS 315 HW 3 - Erin Plummer (eap3629)"
-author: "Erin Plummer"
+author: "https://github.com/eplum53/SDS315-HW.git"
 output:
   html_document:
     toc: true
