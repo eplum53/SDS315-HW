@@ -1,0 +1,253 @@
+---
+title: "SDS 315 HW 4 - Erin Plummer (eap3629)"
+author: "https://github.com/eplum53/SDS315-HW.git"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+  pdf_document:
+    toc: true
+---
+
+<style>
+  body {
+    font-family:"Georgia";
+  }
+</style>
+
+```{r global_options, echo=FALSE}
+library(ggplot2)
+
+knitr::opts_chunk$set(fig.height=4, fig.width=7, warning=FALSE, tidy=TRUE, echo=FALSE, message = FALSE, tidy.opts=list(width.cutoff=60))
+
+theme_set(theme_minimal(base_size = 12, base_family = "serif"))
+```
+
+------------------------------------------------------------------------
+
+```{r}
+# Other packages used throughout
+library(tidyverse)
+library(dplyr)
+library(mosaic)
+library(kableExtra)
+library(stringr)
+```
+
+# **Problem 1 - Iron Bank**
+
+* **Null Hypothesis:** security trades from the Iron Bank are flagged at a baseline rate of 2.4% (0.024).
+
+* **Test Statistic:** the number of flagged trades out of 2021 - here, 70 out 2021 trades were flagged.  
+
+```{r}
+# Conduct a Monte Carlo simulation
+sim_trades <- do(100000)*nflip(n = 2021, prob = 0.024)
+```
+ 
+* **Plot:**
+
+```{r}
+# Design a plot for the distribution
+ggplot(sim_trades) + geom_histogram(aes(x = nflip), color = "black", fill = "blue") + labs(title = "Monte Carlo Simulation Distribution", x = "Number of Trades Flagged", y = "Frequency")
+```
+
+```{r}
+# Calculate a p-value
+p_value1 <- sum(sim_trades >= 70) / 100000
+```
+
+* **P-value:** the p-value for this distribution is `r p_value1`, meaning that there is about a 0.2% chance of 70 out of 2021 trades being flagged. 
+
+* **Conclusion:** Because the p-value of `r round(p_value1, 3)` is less than any reasonable significance level (ie 0.05), we can reject the null hypothesis; there is convincing evidence that the true proportion of flagged trades is greater than 2.4%.
+
+# **Problem 2 - Health Inspections**
+
+* **Null Hypothesis:** Gourmet Bites' rate for health code violations is the same as the citywide average of 3% (0.03).
+
+* **Test Statistic:** the number of health code out of the total number of inspections - for Gourmet Bites, 8 out of 50 inspections resulted in health code violations.  
+
+```{r}
+# Conduct a Monte Carlo simulation
+sim_health <- do(100000)*nflip(n = 50, prob = 0.03)
+```
+
+* **Plot:**
+
+```{r}
+# Design a plot for the distribution
+ggplot(sim_health) + geom_histogram(aes(x = nflip), color = "black", fill = "green") + labs(title = "Monte Carlo Simulation Distribution", x = "Number of Health Code Violations", y = "Frequency")
+```
+
+```{r}
+#Calculate a p-value
+options(scipen = 999)
+p_value2 <- sum(sim_health >= 8) / 100000
+```
+
+* **P-value:** here, the p-value is `r p_value2`, which means that in a world where the null hypothesis is true, there is practically a 0% chance of having 8 out of 50 health inspections result in violations.  
+
+* **Conclusion:** Because the p-value of `r p_value2` is less than any reasonable significance level (ie 0.05), we can reject the null hypothesis; there is convincing evidence that the true rate of health code violations at Gourmet Bites is significantly higher than the baseline of 3%. 
+
+# **Problem 3 - Evaluating Jury Selection for Bias**
+
+```{r}
+# Create table for expected and observed counts
+expected <- c("Group 1" = 0.30, "Group 2" = 0.25, "Group 3" = 0.20, "Group 4" = 0.15, "Group 5" = 0.10)
+observed <- c("Group 1" = 85, "Group 2" = 56, "Group 3" = 59, "Group 4" = 27, "Group 5" = 13)
+jury_selection <- tibble(Expected = expected*240, Observed = observed)
+
+# Define a function to calculate chi-squared statistic
+chi_squared <- function(Observed, Expected) {
+  sum((Observed - Expected)^2 / Expected)
+}
+
+# Conduct a series of multinomial sample simulations
+sim_jury <- do(100000)*{
+  simulated_counts = rmultinom(1, 240, expected)
+  chi_vector = chi_squared(simulated_counts, expected*240)
+  c(chi_vector = chi_vector)
+}
+```
+
+* **Null Hypothesis:** over the long run, the number of impaneled jurors selected by a particular judge for each demographic group is consistent with the expected distribution
+
+* **Test Statistic:** chi-squared - a measure of the difference between observed and expected counts
+
+* **Plot:**
+
+```{r}
+# Design a plot for the distribution
+ggplot(sim_jury) + geom_histogram(aes(x = chi_vector), color = "black", fill = "purple") + labs(title = "Distribution of Chi-Square Values", x = "Chi-Square", y = "Frequency")
+```
+
+```{r}
+# Calculate chi-square for original data
+original_chi <- chi_squared(observed, expected*240)
+
+# Calculate a p-value
+p_value3 <- sum(sim_jury >= original_chi) / 100000
+```
+
+* **P-value:** here, the chi-squared statistic for the observed number of impaneled jurors was calculated as `r round(original_chi, 3)`. The p-value for the above distribution was calculated as `r p_value3`, meaning that there is around a 1.5% chance of getting a statistic of this value if the null hypothesis is true. 
+
+* **Conclusion:** Because the p-value of `r round(p_value2, 3)` is less than a significance level of 0.05, we can reject the null hypothesis - we have convincing evidence that the distribution of jurors impaneled by this judge is different from the county's population proportions. That being said, this does not necessarily suggest systemic bias in jury selection. It is a possibility that this particular distribution could have been compiled through random chance; perhaps not all of the eligible jury population responds to their summon or a disproportionate amount are removed through peremptory challenges. To investigate further, experiments would have to be conducted to isolate confounding variables or the presence of bias in trials outside of the 20 in question. 
+
+# **Problem 4 - LLM watermarking**
+
+## Part A
+
+```{r}
+# Read lines from the file
+lines <- readLines("brown_sentences.txt")
+
+# Preprocess the text
+cleaned_lines <- gsub("[^A-Za-z]", "", lines)
+cleaned_lines <- toupper(cleaned_lines)
+
+# Upload the expected probability of each letter
+letter_frequency <- read_csv("letter_frequencies.csv")
+
+# Calculate the observed counts of each letter
+observed_counts <- matrix(0, nrow = length(cleaned_lines), ncol = length(letter_frequency$Letter))
+colnames(observed_counts) <- letter_frequency$Letter
+for (i in 1:length(cleaned_lines)) {
+  for (k in 1:length(letter_frequency$Letter)) {
+    observed_counts[i, k] <- str_count(cleaned_lines[i], letter_frequency$Letter[k])
+  }
+}
+
+# Calculate the expected counts of each letter
+expected_counts <- matrix(0, nrow = length(cleaned_lines), ncol = length(letter_frequency$Letter)) 
+colnames(expected_counts) <- letter_frequency$Letter
+for (i in 1:length(cleaned_lines)) {
+  for (k in 1:length(letter_frequency$Letter)) {
+    expected_counts[i, k] <- letter_frequency$Probability[k] * str_length(cleaned_lines[i])
+  }
+}
+
+# Calculate the chi-squared statistic for each letter (uses the previous    function)
+chi_squared_matrix <- matrix(0, nrow = length(cleaned_lines), ncol = length(letter_frequency$Letter)) 
+colnames(chi_squared_matrix) <- letter_frequency$Letter
+for (i in 1:length(cleaned_lines)) {
+  for (k in 1:length(letter_frequency$Letter)) {
+    chi_squared_matrix[i, k] <- chi_squared(observed_counts[i, k], expected_counts[i, k])
+  }
+}
+
+# Sum the chi-squared values for each sentence to get a single statistic
+total_chi_squared <- as_tibble(rowSums(chi_squared_matrix))
+
+# Compile the distribution
+ggplot(total_chi_squared) + geom_histogram(aes(x = value), color = "black", fill = "gold") + labs(title = "Chi-Squared Null Distribution", x = "Chi-Squared Statistic", y = "Frequency")
+```
+For the sentences extracted from the Brown Corpus, a chi-squared statistic was calculated to measure the observed and expected counts of each letter. This makes up the null distribution, the graph of which is given above.
+
+(This marks a similar process to the Monte Carlo Simulation)
+
+## Part B
+
+```{r}
+# Create a vector of sentences
+sentences <- c(
+  "She opened the book and started to read the first chapter, eagerly anticipating what might come next.",
+  "Despite the heavy rain, they decided to go for a long walk in the park, crossing the main avenue by the fountain in the center.",
+  "The museum’s new exhibit features ancient artifacts from various civilizations around the world.",
+  "He carefully examined the document, looking for any clues that might help solve the mystery.",
+  "The students gathered in the auditorium to listen to the guest speaker’s inspiring lecture.",
+  "Feeling vexed after an arduous and zany day at work, she hoped for a peaceful and quiet evening at home, cozying up after a quick dinner with some TV, or maybe a book on her upcoming visit to Auckland.",
+  "The chef demonstrated how to prepare a delicious meal using only locally sourced ingredients, focusing mainly on some excellent dinner recipes from Spain.",
+  "They watched the sunset from the hilltop, marveling at the beautiful array of colors in the sky.",
+  "The committee reviewed the proposal and provided many points of useful feedback to improve the project’s effectiveness.",
+  "Despite the challenges faced during the project, the team worked tirelessly to ensure its successful completion, resulting in a product that exceeded everyone’s expectations."
+)
+
+# Preprocess the sentences
+cleaned_sentence <- gsub("[^A-Za-z]", "", sentences)
+cleaned_sentence <- toupper(cleaned_sentence)
+
+# Calculate the observed count of each letter in the sentences
+sentence_observed <- matrix(0, nrow = length(cleaned_sentence), ncol = length(letter_frequency$Letter))
+colnames(sentence_observed) <- letter_frequency$Letter
+for (i in 1:length(cleaned_sentence)) {
+  for (k in 1:length(letter_frequency$Letter)) {
+    sentence_observed[i, k] <- str_count(cleaned_sentence[i], letter_frequency$Letter[k])
+  }
+}
+
+# Calculate the expected count of each letter in the sentences
+sentence_expected <- matrix(0, nrow = length(cleaned_sentence), ncol = length(letter_frequency$Letter)) 
+colnames(sentence_expected) <- letter_frequency$Letter
+for (i in 1:length(cleaned_sentence)) {
+  for (k in 1:length(letter_frequency$Letter)) {
+    sentence_expected[i, k] <- letter_frequency$Probability[k] * str_length(cleaned_sentence[i])
+  }
+}
+
+# Calculate the chi-squared statistic for each letter (uses the previous    function)
+chi_squared_matrix2 <- matrix(0, nrow = length(cleaned_sentence), ncol = length(letter_frequency$Letter)) 
+colnames(chi_squared_matrix2) <- letter_frequency$Letter
+for (i in 1:length(cleaned_sentence)) {
+  for (k in 1:length(letter_frequency$Letter)) {
+    chi_squared_matrix2[i, k] <- chi_squared(sentence_observed[i, k], sentence_expected[i, k])
+  }
+}
+
+# Sum the chi-squared values for each sentence to get a single statistic
+total_chi_squared2 <- as_tibble(rowSums(chi_squared_matrix2))
+
+# Calculate p-values
+p_value4 <- c()
+for (i in 1:length(total_chi_squared2$value)) {
+  p_value4[i] <- sum(total_chi_squared$value >= total_chi_squared2$value[i]) / length(total_chi_squared$value)
+}
+p_value4 <- as_tibble(round(p_value4, 3))
+
+# Construct a table for the above p-values
+kable_styling(kbl(p_value4, caption='P-Values to Check for a Watermark', col.names=c("Sentence Number","P-Value"), row.names = TRUE), bootstrap_options='bordered')
+```
+These are the p-values calculated for each sentence under the null hypothesis that it follows a typical English letter distribution. 
+
+For Sentence #6, we can reject this null hypothesis because it is the only one with a p-value lower than a significance level of 0.05. This suggests that it is watermarked and differs significantly from the expected letter count. 
+
+
