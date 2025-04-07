@@ -1,0 +1,306 @@
+---
+title: "SDS 315 HW 7 - Erin Plummer (eap3629)"
+author: "https://github.com/eplum53/SDS315-HW.git"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+  pdf_document:
+    toc: true
+---
+
+<style>
+  body {
+    font-family:"Georgia";
+    font-size: 15px;
+  }
+</style>
+
+```{r global_options, echo=FALSE}
+library(ggplot2)
+
+knitr::opts_chunk$set(fig.height=4, fig.width=7, warning=FALSE, tidy=TRUE, echo=FALSE, message = FALSE, tidy.opts=list(width.cutoff=60))
+
+theme_set(theme_minimal(base_size = 12, base_family = "serif"))
+```
+
+------------------------------------------------------------------------
+
+```{r}
+# Other packages used throughout
+library(tidyverse)
+library(dplyr)
+library(mosaic)
+library(kableExtra)
+library(MatchIt)
+```
+
+# **Problem 1: Armfolding**
+
+## Part A
+
+```{r}
+# Load data set
+armfold <- read_csv("armfold.csv")
+```
+
+```{r}
+# Calculate number of male and female students
+num_males <- sum(armfold$Sex == "Male")
+
+num_females <- sum(armfold$Sex == "Female")
+
+# Calculate proportion of males and females who folded left arm on top
+prop_males <- prop(LonR_fold ~ Sex, data=armfold, success=1)["prop_1.Male"]
+
+prop_females <- prop(LonR_fold ~ Sex, data=armfold, success=1)["prop_1.Female"] 
+```
+
+* Total number of students: 217
+
+  + Number of males: `r num_males`
+  + Number of females: `r num_females`  
+  
+<span style="display:none">* Hidden spacer</span>
+
+* Proportion of **males** who folded their left arm on top: `r round(prop_males, 3)`
+
+* Proportion of **females** who folded their left arm on top: `r round(prop_females, 3)`
+
+## Part B
+
+```{r}
+# Calculate observed difference
+observed_diff <- prop_males - prop_females
+```
+
+The observed difference in proportions (males - females) is `r round(observed_diff, 3)`.
+
+## Part C
+
+```{r}
+# Ensure the function computes (males - females)
+armfold$Sex <- factor(armfold$Sex, levels = c("Male", "Female"))
+
+# Create a confidence interval
+interval1C <- prop.test(LonR_fold ~ Sex, data=armfold, success=1)
+```
+
+Based on these sample proportions, a confidence interval was calculated using R's built-in function as (-0.09, 0.19). This compares to the "hand-calculated" interval of (-0.08, 0.18). The difference is likely due to rounding.   
+
+* The formula for the standard error for the difference in proportions is $SE = \sqrt{\frac{\hat{p}_1 (1 - \hat{p}_1)}{n_1} + \frac{\hat{p}_2 (1 - \hat{p}_2)}{n_2}}$.
+
+* The values plugged into the formula are given by $SE = \sqrt{\frac{0.472 (1 - 0.472)}{106} + \frac{0.423 (1 - 0.423)}{111}}$, where 0.472 is $\hat{p}_1$ (the sample proportion of males), 0.423 is $\hat{p}_2$ (the sample proportion of females), 106 is ${n_1}$ (the number of male students) and 111 is ${n_2}$ (the number of female students).
+
+  + *Note* to fully compute the confidence interval, $SE$ was multiplied by ${z^*}$ (together these make up the margin of error), which was both added and subtracted from the observed difference in proportions.
+
+<span style="display:none">* Hidden spacer</span>
+
+* 1.96 was used for ${z^*}$ because it is the critical value that corresponds to a 95% confidence interval. 
+
+## Part D
+
+In context, this means that if we were to repeat this experiment many times and take 95% confidence intervals for each one, we would expect about 95% to capture the true parameter. More specifically, we can say with 95% confidence that the true difference in proportions between males and females who fold their left arm over their right arm at this university is somewhere between -0.09 and 0.19. 
+
+## Part E
+
+The standard error refers to the standard deviation of the sampling distribution. It measures how much a sample statistic typically deviates from the true population parameter. For this experiment, $SE$ was calculated as about 0.07, meaning that across repeated samples, the difference in proportion between males and females who fold their left arm over their right is expected to vary from the true proportion by 0.07.  
+
+## Part F
+
+The term "sampling distribution" refers to the distribution of values for a statistical summary under repeated sampling. Here, the sampling distribution is made up of the many proportional differences calculated from **each** sample obtained through multiple iterations of the same experiment. Each sample is the same size and is taken from the same population. The summary statistic itself often varies from sample to sample because of natural variability. 
+
+## Part G
+
+The Central Limit Theorem justifies using a normal distribution to approximate the sampling distribution of the difference in sample proportions. In other words, if the sample size is sufficiently large, the distribution of the summary statistic will yield towards a bell curve, even if the population itself is not normally distributed.  
+
+## Part H
+
+If the 95% confidence interval for the difference in proportions was (-0.01, 0.30), this indicates that anywhere from 1% more females to 30% more males may fold their left arm over their right. However, if someone were to claim that there is no difference in arm folding, that would not necessarily be true. 0 is included in the interval, so the results are not statistically significant, but in practical terms, the difference in proportions may actually be quite large - the full range of values should be entertained. 
+
+## Part I
+
+If this experiment were repeated many times with different random samples of university students, the confidence intervals would likely be different across samples. The summary statistic varies for individual trials since it comes from an inherently random process. Still, at the 5% level, 95% of intervals should contain the true difference in proportions between males and females who fold their left arm over their right. This collection of intervals is a measure of statistical uncertainty - the Central Limit Theorem tells us that for large-sample inference, a random variable is within two standard deviations of its mean 95% of the time. 
+
+# **Problem 2: Get out the vote**
+
+## Part A
+
+```{r}
+# Load data set
+turnout <- read_csv("turnout.csv")
+```
+
+```{r}
+# Calculate the proportion of 1998 voters who did receive a call
+call_received <- prop(voted1998 ~ GOTV_call, data=turnout, success=1)["prop_1.0"]
+
+# Calculate the proportion of 1998 voters who did not receive a call
+call_missed <- prop(voted1998 ~ GOTV_call, data=turnout, success=1)["prop_1.1"]
+
+# Create a confidence interval for the difference in proportions
+interval_2A <- prop.test(voted1998 ~ GOTV_call, data=turnout, success = 1)
+```
+
+* The proportion of those who voted in 1998 who did receive a GOTV call is `r round(call_received, 3)`.
+
+* The proportion of those who voted in 1998 who did *not* receive a call is `r round(call_missed, 3)`.
+
+* A confidence interval was calculated for the observed difference in proportions (those who received a call - those who did not); it came out to be **(-0.266, -0.14)**. With 95% confidence, the true difference in proportions among 1998 voters who did and did not receive a GOTV call is between -0.266 and -0.14. Based on this, GOTV call recipients seem less likely to vote since there were 14% to 26.6% more voters in 1998 who did not receive a call.  
+
+## Part B
+
+Lets look at a plot of this data:
+
+```{r fig.width = 8, fig.height = 5}
+# Create a plot and confidence interval for the unconfounded data
+ggplot(turnout) + geom_bar(aes(x = factor(GOTV_call), fill = factor(voted1998)), position = "dodge", color = "black") + scale_x_discrete(labels = c("No", "Yes")) + scale_fill_discrete(labels = c("No", "Yes")) + labs(title = "Voters and Non-Voters Who Received GOTV Phone Calls in 1998", x = "Received GOTV Call", y = "Number of People", fill = "Voted")
+
+unconfounded_model <- lm(voted1998 ~ GOTV_call, data=turnout)
+
+unconfounded_interval <- confint(unconfounded_model, level = 0.95)
+```
+
+Again, this indicates that the majority of people who voted in 1998 did not receive a GOTV call, implying a possible cause-and-effect relationship. 
+
+Interestingly enough, a linear regression model was fitted to produce a confidence interval of **(0.14, 0.266)**. This is the opposite of what was seen above, suggesting that receiving a GOTV call increases voter turnout by 14% to 26.6%. 
+
+There are likely confounders in the data influencing both the explanatory and the response variable. Let's analyse three of them:
+
+```{r}
+# Create a table of statistics for the confounded data
+grouped_turnout <- group_by(turnout, GOTV_call)
+grouped_turnout <- summarize(grouped_turnout, voted_1998 = sum(voted1998 == 1), mean_age = mean(AGE), voted_1996 = sum(voted1996 == 1), party_member = sum(MAJORPTY == 1))
+kable_styling(kbl(grouped_turnout, caption='Potential Confounding Data Between Those Who Received a GOTV Call and 1998 Voters', col.names = c("Received GOTV Call", "Number of 1998 Voters", "Average Age", "Number of 1996 Voters", "Number Affiliated with a Major Party")), bootstrap_options='bordered')
+```
+
+This is a table with summary statistics for each of the three confounders. Obviously, the average age was significantly lower for those who did not receive a GOTV call, and the number of 1998 voters was higher. This spread further increased for the number of 1996 voters, suggesting that younger people who voted in 1996 were less likely to receive a GOTV call and more likely to vote in 1998. There is also a large difference within the third variable, where a much higher number of 1998 voters who did not receive a GOTV call were also registered as a member of a major US political party. 
+
+The original regression model ignored the presence of such confounders and thus is likely not accurate - let's look at each one more directly. 
+
+```{r fig.width = 8, fig.height = 5}
+# Generate a plot and confidence interval for confounding variable 1
+confounded_model1 <- lm(voted1998 ~ GOTV_call + AGE, data=turnout)
+confounded_interval1 <- confint(confounded_model1, level = 0.95)
+turnout_1998 <- filter(turnout, voted1998 == 1)
+ggplot(turnout_1998) + geom_boxplot(aes(x = factor(GOTV_call), y = AGE), fill = "skyblue", color = "black") + scale_x_discrete(labels = c("No", "Yes")) + labs(title = "Ages of 1998 Voters Who Did and Did Not Receive GOTV Calls", x = "Received GOTV Call", y = "Age (years)") + coord_flip()
+```
+
+This box plot models the relationship among 1998 voters based on their age and whether or not they received a GOTV call. The age range is about the same, though the median for younger voters is significantly lower, which reflects the above table.  
+
+A large sample confidence interval was computed for the fitted regression model, this time accounting for voter age: **(0.079, 0.2)**. This interval is largely different from the one that measured the relationship between GOTV calls and voter turnout across all ages. 
+
+```{r fig.width = 8, fig.height = 5}
+# Generate a plot and confidence interval for confounding variable 2
+confounded_model2 <- lm(voted1998 ~ GOTV_call + AGE + voted1996, data=turnout)
+confounded_interval2 <- confint(confounded_model2, level = 0.95)
+ggplot(turnout_1998) + geom_boxplot(aes(x = factor(GOTV_call), y = AGE), fill = "skyblue", color = "black") + scale_x_discrete(labels = c("No", "Yes")) + labs(title = "GOTV Calls Received by 1998 Voters Based on Whether They Voted in 1996", x = "Received GOTV Call", y = "Age (years)") + facet_wrap(~voted1996) + coord_flip()
+```
+
+Here, another confounding variable has been added to the plot: whether or not a voter voted in 1996. The box plots are faceted according to 1996 voter turnout - 1 indicates a person did vote, while 0 indicates they did not. The spread is slightly more varied, with the youngest voters receiving a GOTV call and voting in 1996. 
+
+Once again, the regression model was fitted to also adjust for 1996 voters, giving a confidence interval of **(0.042, 0.15)**. The interval has changed even more when accounting for another confounder. Both the upper bound and lower bound for the slope between receiving a GOTV call and 1998 voter turnout continues to grow smaller. 
+
+Now, let's look at a third variable:
+
+```{r fig.width = 8, fig.height = 5}
+# Generate a plot and confidence interval for confounding variable 3
+confounded_model3 <- lm(voted1998 ~ GOTV_call + voted1996 + AGE + MAJORPTY, data=turnout)
+confounded_interval3 <- confint(confounded_model3, level = 0.95)
+ggplot(turnout_1998) + geom_boxplot(aes(x = factor(GOTV_call), y = AGE, fill = factor(MAJORPTY)), color = "black") + scale_x_discrete(labels = c("No", "Yes")) + labs(title = "GOTV Calls Received by 1998 Voters Based on Whether They Voted in 1996 and Were \nRegistered As a Major Party ", x = "Received GOTV Call", y = "Age (years)", fill = "Major Party") + facet_wrap(~voted1996) + coord_flip()
+```
+
+This plot models yet another variable, focusing on a voter's affiliation with one of the two major US political parties. There seems to be more variation among voter age for those who did not vote in 1996, while age increases more gradually for 1996 voters affiliated and not affiliated with a party - the multivariable plot makes it difficult to analyze the direct correlation between GOTV calls and voter turnout in 1998, a representation of the influence of confounding variables. 
+
+The regression model now accounts for all three of these measured confounding variables, and the confidence interval is as follows: **(0.04, 0.15)**. It did change slightly, but not as much, suggesting that major party affiliation had less impact on receiving a GOTV call/voting in 1998 as compared to the the other two variables. 
+
+## Part C
+
+```{r}
+# Produce a matched data set
+turnout_matched <- matchit(GOTV_call ~ AGE + voted1996 + MAJORPTY, data=turnout, ratio = 5)
+turnout_matched <- match.data(turnout_matched)
+```
+
+What was originally an unbalanced data set has now been balanced: matching was used with the GOTV call as the treatment variable and the three confounders as "balancing" variables. There were 5 control cases for each treatment. 
+
+Let's make sure the data is truly balanced:
+
+```{r}
+# Produce relevant summary statistics and confidence intervals
+unconfounded_model2 <- lm(voted1998 ~ GOTV_call, data = turnout_matched)
+unconfounded_interval2 <- confint(unconfounded_model2, level = 0.95)
+```
+
+The confidence interval for the slope between receiving a GOTV call and 1998 voter turnout is **(0.011, 0.146)**. This was derived from the linear regression model without accounting for confounders.
+
+This is a table of means of the average age across those who did and did not receive a GOTV call: 
+
+```{r}
+statistic1 <- mean(AGE ~ GOTV_call, data=turnout_matched)
+kable_styling(kbl(statistic1, caption='Mean Age Among Those Who Did and Did Not Receive a GOTV Call', col.names = c("Received GOTV Call", "Average Age")), bootstrap_options='bordered')
+```
+ 
+ It is practically the same across all levels. 
+ 
+```{r}
+model_1 <- lm(voted1998 ~ GOTV_call + AGE, data=turnout_matched)
+interval_1 <- confint(model_1, level = 0.95)
+```
+
+The regression model, now accounting for age, gives a confidence interval of **(0.013, 0.14)**. This is much closer to the original, especially the upper bound which barely shifted. 
+
+We see a similar pattern with 1996 voter turnout and GOTV calls:
+
+```{r}
+statistic2 <- prop.table(xtabs(~ voted1996 + GOTV_call, data=turnout_matched), margin=2)
+add_header_above(kable_styling(kbl(statistic2, caption="Proportion of 1996 Voter Turnout Based on GOTV Call", col.names=c("Voted in 1996","0","1"),row.names = TRUE), bootstrap_options="bordered"),c("","Received GOTV Call"=2))
+```
+
+People who received and did not receive GOTV calls have identical proportions of voter turnout in 1996. 
+
+```{r}
+model_2 <- lm(voted1998 ~ GOTV_call + AGE + voted1996, data=turnout_matched)
+interval_2 <- confint(model_2, level = 0.95)
+```
+
+This variable was now included in the regression model, producing a confidence interval of **(0.017, 0.139)**. The lower bound rises slightly, but again the difference is much less dramatic than it was for the unbalanced data. 
+
+Finally, this is the set of summary statistics for the third confounding variable:
+
+```{r}
+statistic3 <- prop.table(xtabs(~ MAJORPTY + GOTV_call, data=turnout_matched), margin=2)
+add_header_above(kable_styling(kbl(statistic3, caption="Major Party Association and GOTV Call", col.names=c("Registered as a Major Party","0","1"),row.names = TRUE), bootstrap_options="bordered"),c("","Received GOTV Call"=2))
+```
+
+Again, the proportions of those who did and did not receive GOTV calls are practically identical for members and non-members of major political parties.
+
+```{r}
+model_3 <- lm(voted1998 ~ GOTV_call + AGE + voted1996 + MAJORPTY, data=turnout_matched)
+interval_3 <- confint(model_3, level = 0.95)
+```
+
+The linear regression model for the matched data now accounts for all "confounders," with a confidence interval of **(0.017, 0.139)** - this gives a more specific range, meaning the presence of confounders likely underestimated the relationship between a GOTV call and voter turnout. 
+
+Finally, we'll replicate the analysis from Part A with the new matched data:
+
+```{r}
+# Calculate the proportion of 1998 voters who did receive a call
+call_received2 <- prop(voted1998 ~ GOTV_call, data=turnout_matched, success=1)["prop_1.0"]
+
+# Calculate the proportion of 1998 voters who did not receive a call
+call_missed2 <- prop(voted1998 ~ GOTV_call, data=turnout_matched, success=1)["prop_1.1"]
+
+# Create a confidence interval for the difference in proportions
+interval_2C <- prop.test(voted1998 ~ GOTV_call, data=turnout_matched, success = 1)
+```
+
+* The proportion of those who voted in 1998 who did receive a GOTV call is `r round(call_received2, 3)`.
+
+* The proportion of those who voted in 1998 who did *not* receive a call is `r round(call_missed2, 3)`.
+
+* A confidence interval was calculated for the observed difference in proportions (those who received a call - those who did not); it came out to be **(-0.147, -0.01)**. 
+
+
+**Conclusion**: The GOTV call increased the likelihood of voting in the 1998 election. Even though both confidence intervals for the difference in proportions of both the unmatched and matched data showed a negative impact on voting likelihood, the regression models consistently indicated a positive relationship. There are limitations of matching, especially with unmeasured confounders. Overall, linear regression models are more suitable for defining partial relationships between variables.   
+
