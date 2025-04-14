@@ -1,0 +1,148 @@
+---
+title: "SDS 315 HW 8 - Erin Plummer (eap3629)"
+author: "https://github.com/eplum53/SDS315-HW.git"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+  pdf_document:
+    toc: true
+---
+
+<style>
+  body {
+    font-family:"Georgia";
+    font-size: 15px;
+  }
+</style>
+
+```{r global_options, echo=FALSE}
+library(ggplot2)
+
+knitr::opts_chunk$set(fig.height=4, fig.width=7, warning=FALSE, tidy=TRUE, echo=FALSE, message = FALSE, tidy.opts=list(width.cutoff=60))
+
+theme_set(theme_minimal(base_size = 12, base_family = "serif"))
+```
+
+------------------------------------------------------------------------
+
+```{r}
+# Other packages used throughout
+library(tidyverse)
+library(dplyr)
+library(mosaic)
+```
+
+# **Problem 1: Regression Warm Up**
+
+```{r}
+# Upload data set
+creatinine <- read_csv("creatinine.csv")
+```
+
+## A)
+
+```{r}
+# Fit regression model and calculate coefficients
+model_creatinine <- lm(creatclear ~ age, data=creatinine)
+coefficients <- coef(model_creatinine)
+```
+
+For a 55 year old, we would expect a creatinine clearance rate of 115 mL/minute. This is given by the fitted regression model, $\hat{y} = 148 - 0.6x$, where $\hat{y}$ is the response variable and age is the predictor.   
+
+## B)
+
+Creatinine clearance rate changes about -0.6 mL/minute per year. This number represents the slope of the regression equation, or the weight on age. More specifically, for every one-year increase in age, the creatinine clearance rate decreases by 0.6 mL/minute on average.  
+
+## C)
+
+A 40-year-old with a rate of 135 has a healthier creatinine clearance rate *for their age*. The predicted rates of a 40-year-old and 60-year-old are given by:
+\[
+\hat{y}_{40} = 148 - 0.6(40) = 124 \quad \text{and} \quad \hat{y}_{60} = 148 - 0.6(60) = 112
+\]
+Residuals are calculated as:
+\[
+\text{Residual} = \text{Actual} - \text{Predicted}
+\]
+Since a 40-year-old has a higher model error of 11 mL/minute (which compares to 0 mL/minute for a 60-year-old), this means the 40-year-old has the healthier rate since it is above average for their age. 
+
+# **Problem 2: Modeling Disease Growth**
+
+```{r}
+# Upload data set
+covid <- read_csv("covid.csv")
+```
+
+## #1
+
+```{r}
+# Filter data set to only include Italy
+covid_italy <- filter(covid, country == "Italy")
+
+# Fit bootstrapped regression models
+growth_italy <- do(10000)*lm(log(deaths) ~ days_since_first_death, data=mosaic::resample(covid_italy))
+
+# Compute confidence interval for growth rate
+interval_italy <- confint(growth_italy, level = 0.95)
+interval_italy <- filter(interval_italy, name == "days_since_first_death")
+
+# Calculate lower and upper bounds for doubling time using "rule of 70"
+interval_italy <- mutate(interval_italy, lower_doubling = 70 / (upper * 100), upper_doubling = 70 / (lower * 100))
+```
+
+The 95% bootstrapped confidence interval for the estimated growth rate of the virus in Italy is (0.159, 0.208); the doubling time is given as (3.4, 4.4) meaning we can say with 95% confidence that it takes between 3.4 and 4.4 days since the first recorded death for the number of daily deaths to double. 
+
+## #2
+
+```{r}
+# Filter data set to only include Spain
+covid_spain <- filter(covid, country == "Spain")
+
+# Fit bootstrapped regression models
+growth_spain <- do(10000)*lm(log(deaths) ~ days_since_first_death, data=mosaic::resample(covid_spain))
+
+# Compute confidence interval for growth rate
+interval_spain <- confint(growth_spain, level = 0.95)
+interval_spain <- filter(interval_spain, name == "days_since_first_death")
+
+# Calculate lower and upper bounds for doubling time using "rule of 70"
+interval_spain <- mutate(interval_spain, lower_doubling = 70 / (upper * 100), upper_doubling = 70 / (lower * 100))
+```
+
+In Spain, the 95% bootstrapped confidence interval for growth rate is (0.235, 0.317); here, the number of daily cases is likely to grow at a rate between 23.5% and 31.7% since the first death. The interval for estimated doubling time is (2.2, 3.0) days. 
+
+## #3
+
+The line graph below further models this exponential relationship:
+
+```{r fig.width = 7, fig.height = 4}
+# Create a line graph 
+ggplot(covid) + geom_line(aes(x = days_since_first_death, y = deaths, color = country)) + labs(title = "Reported Daily Deaths Over Time in Italy and Spain", x = "Number of Days Since First Death", y = "Number of Deaths Per Day", color = "Country")
+```
+
+# **Problem 3: Price Elasticity of Demand**
+
+```{r}
+# Upload data set
+milk <- read_csv("milk.csv")
+```
+
+```{r}
+# Fit regression model and calculate coefficients for original data
+milk_model <- lm(log(sales) ~ log(price), data = milk)
+milk_coefficients <- coef(milk_model)
+
+# Fit bootstrapped regression models
+lm_milk <- do(10000)*lm(log(sales) ~ log(price), data=mosaic::resample(milk))
+
+# Compute confidence interval for elasticity
+interval_milk <- confint(lm_milk, level = 0.95)
+```
+
+In light of the given data, the estimated price elasticity of demand for milk is -1.62; in other words, for every 1% increase in the price of milk, consumers buy about 1.62% less on average. 
+
+Since this relationship follows a power-law model, the data was first re-expressed on a logarithmic scale to linearize the relationship between variables. A regression model was fitted, with equation $\log(y) = 4.72 - 1.62 \cdot \log(x)$; the coefficient for slope, -1.62, represents the expected elasticity. 
+
+Applying this model to bootstrapped samples produces a 95% confidence interval of (-1.77, -1.45), which is consistent with the original estimate. This means we can say with 95% confidence that the true price elasticity of demand for milk is between -1.77 and -1.45. 
+
+
