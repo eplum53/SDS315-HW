@@ -1,0 +1,209 @@
+---
+title: "SDS 315 HW 8 - Erin Plummer (eap3629)"
+author: "https://github.com/eplum53/SDS315-HW.git"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+  pdf_document:
+    toc: true
+---
+
+<style>
+  body {
+    font-family:"Georgia";
+    font-size: 15px;
+  }
+</style>
+
+```{r global_options, echo=FALSE}
+library(ggplot2)
+
+knitr::opts_chunk$set(fig.height=4, fig.width=7, warning=FALSE, tidy=TRUE, echo=FALSE, message = FALSE, tidy.opts=list(width.cutoff=60))
+
+theme_set(theme_minimal(base_size = 12, base_family = "serif"))
+```
+
+------------------------------------------------------------------------
+
+```{r}
+# Other packages used throughout
+library(tidyverse)
+library(dplyr)
+library(mosaic)
+library(kableExtra)
+library(effectsize)
+```
+
+# **Problem 1: Manufacturing Flaws in Circuit Boards**
+
+```{r}
+# Upload data set
+circuits <- read_csv("solder.csv")
+```
+
+## Part A
+
+Let's look at a plot of the relationship between solder opening and number of skips:
+
+```{r}
+# Plot to provide evidence between opening size and skips
+ggplot(circuits) + geom_boxplot(aes(x = Opening, y = skips), fill = "pink") + labs(title = "Solder Opening vs. Number of Skips", x = "Size of Opening", y = "Number of Skips")
+```
+
+This plot models the distribution of skips (manufacturing flaws on the circuit board) across different opening sizes on the solder gun. There is an obvious trend, with large openings having a median number of 0 skips, medium openings a median of 2 skips, and small openings a median of 7.5 skips. It appears that most solder guns had small openings as the data is much more widespread for this group.  
+
+
+Now here's a plot of the relationship between alloy thickness and number of skips:
+
+```{r}
+ggplot(circuits) + geom_boxplot(aes(x = Solder, y = skips), fill = "skyblue") + labs(title = "Alloy Thickness vs. Number of Skips", x = "Thickness of Alloy", y = "Number of Skips") 
+```
+
+This plot also compares a numerical and categorical variable. Once again, the number of skips on the circuit board is displayed along the y-axis, while the thickness of the alloy used for soldering is on the x-axis. There is a similar pattern here: the number of skips seems to increase across thickness levels, with thick alloys producing 2.9 skips on average, and thin alloys having a mean of 8.2 skips. Again, outliers are present and there is a larger range of circuit boards soldered with a thin alloy.  
+
+
+## Part B
+
+A more mathematical approach to find the relationship between variables would be to fit a regression model with solder opening, alloy thickness, and the interaction between them as predictors: the **table below** is an estimate for these coefficients, with 95% confidence:
+
+```{r}
+# Fit a regression model and compute a 95% confidence interval
+lm_skips <- lm(skips ~ Opening + Solder + Opening:Solder, data=circuits)
+estimates <- coef(lm_skips)
+circuits_interval <- confint(lm_skips, level = 0.95)
+
+# Create a table with the estimate and large-sample interval
+kable_styling(kbl(cbind("Estimates" = estimates, circuits_interval), caption='Estimates + Confidence Interval for Regression Model Coefficients'), bootstrap_options='bordered')
+```
+
+## Part C
+
+Going down the rows in the table, we can interpret each coefficient:
+
+The estimated number of skips when both opening size and soldering type are at their baseline (large and thick, respectively) is about 0.39; when the opening is medium and the solder type is thick, the number of skips is expected to increase by 2.4; similarly, when the opening is small and solder type is thick, the number of skips changes by 5.13.
+
+When opening size is large and solder type is thin, the number of skips likely increases by 2.28. The coefficients for the interaction terms show how the number of skips might change when neither variable is equal to the baseline: when opening is medium *and* solder type is thin, there are a predicted 0.74 fewer skips than if each were added independently; when opening size is small and solder type is thin, the number of skips is expected to increase by 9.65. 
+
+## Part D
+
+If I were to recommend a combination of opening size and solder thickness to AT&T, it would be a large opening and thick alloy. 0.39 represents the intercept, a regression equation with a single term where the outcome is based only on the baseline value. As the coefficients show, the number of skips will continue to rise as the combinations change  - a large opening and thicker alloy minimizes flaws in the manufacturing process.  
+
+# **Problem 2: Grocery Store Prices**
+
+```{r}
+# Upload data set
+groceries <- read_csv("groceries.csv")
+```
+
+## Part A
+
+What kind of price differences are there across grocery stores in the Houston, Austin, and Fort Worth area?
+
+```{r}
+# Wrangle data, group by store
+groceries_grouped <- group_by(groceries, Store)
+groceries_grouped <- summarize(groceries_grouped, Average_Price = mean(Price))
+
+# Create bar plot
+ggplot(groceries_grouped) + geom_col(aes(x = Store, y = Average_Price), fill = "aquamarine", color = "black") + labs(title = "Average Price of Products Across Different Stores", x = "Store Name", y = "Average Price ($)") + coord_flip()
+```
+
+On the y-axis, this plot has the name of the grocery store. On the x-axis is the average price of all products sold at that store; there is a lot of variation, with Whole Foods having the highest average price at almost $4.00. There is no obvious linear relationship or major trend. 
+
+## Part B
+
+This plot models the distribution of products across grocery stores:
+
+```{r fig.width = 8, fig.height = 5}
+# Wrangle data, group by product
+groceries_grouped2 <- group_by(groceries, Product)
+groceries_grouped2 <- summarize(groceries_grouped2, Sum = n())
+
+# Create bar plot 
+ggplot(groceries_grouped2) + geom_col(aes(x = Product, y = Sum), fill = "aquamarine", color = "black") + labs(title = "Number of Stores that Sell Different Products", x = "Product Name", y = "Number of Stores") + theme(axis.text = element_text(size = 9)) + coord_flip()
+```
+
+Again, there doesn't seem to be any obvious trend. Milk and eggs are a common item sold by 16 stores, while Lucky Charms are more scarce at just 4. These product names are along the y-axis, while the number of stores that sell them is along the x-axis (there are 16 total stores, marking the maximum data value.)
+
+## Part C
+
+```{r}
+# Fit a regression model for price vs product and store type
+lm_groceries <- lm(Price ~ Product + Type, data=groceries)
+groceries_interval <- confint(lm_groceries, level=0.95)
+```
+
+After fitting a regression model for the relationship between price, product and store type, it can be said that...
+
+"Compared with ordinary grocery stores (like Albertsons, HEB, or Kroger), convenience stores charge somewhere between 0.41 and 0.92 dollars more for the same product."
+
+## Part D
+
+```{r}
+# Fit a regression model for price vs product and store
+lm_store <- lm(Price ~ Product + Store, data=groceries)
+store_interval <- confint(lm_store, level=0.95)
+```
+
+Another regression model was fitted, only this time with the store itself as a predictor instead of type:
+
+When comparing the same product, Walmart and Kroger Fresh Fare seem to charge the *lowest* prices while Wheatsville Food Co-Op and Whole Foods seem to charge the *highest* prices.  
+
+## Part E
+
+The coefficient for Central Market lies between -0.92 and -0.23. The coefficient for HEB lies between -0.95 and -0.35 for the same product. Because they both charge less than the baseline and have similar ranges as opposed to many of the other stores with noticeably different values, it seems more likely that Central Market and HEB charge a similar amount for the same product.   
+
+## Part F
+
+```{r}
+# Create Income10K variable and fit regression model
+groceries2 <- mutate(groceries, Income10K = Income / 10000)
+lm_10K <- lm(Price ~ Income10K + Product, data=groceries2)
+coefficients <- coef(lm_10K)
+```
+
+* It seems consumers in poorer ZIP codes pay *more* for the same product on average. The sign of the Income10K coefficient is negative, meaning that for every 10K increase in income, the price of groceries decreases by about $0.014 relative to the baseline. 
+
+```{r}
+# Compute standardized coefficients
+std_coefficients <- standardize_parameters(lm_10K)
+```
+
+* "A one-standard deviation increase in the income of a ZIP code seems to be associated with a **1.08** standard-deviation change in the price that consumers in that ZIP code expect to pay for the same product."
+
+# **Problem 3: Redlining**
+
+### Statement A
+
+**ZIP codes with a higher percentage of minority residents tend to have more FAIR policies per 100 housing units.**
+
+This statement is true. Based on Figure A1, there seems to be a positive relationship between minority percentage and number of FAIR policies. The coefficient of determination further indicates that around 51.6% of variation in FAIR policies can be explained by the minority percentage - it is estimated that for every 1% increase in minority, the number of FAIR policies increases by 0.014.  
+
+### Statement B
+
+**The evidence suggests an interaction effect between minority percentage and the age of the housing stock in the way that these two variables are related to the number of FAIR policies in a ZIP code.**
+
+This statement is undecidable. Figure B1 shows a relatively weak relationship between the percent of houses built before WWII and the minority percentage. It would have been better if there were faceted graphs showing the partial relationships between these variables. The confidence interval shows that for every 1% increase in houses built before WWII, the minority percentage is expected to decrease by 11.6% *or* increase by 91% - this interval reflects a large amount of statistical uncertainty. A regression model where the number of FAIR policies is the response variable with housing age and minority percentage + an interaction term as predictors would be more useful in looking at a possible interaction effect.  
+
+### Statement C
+
+**The relationship between minority percentage and number of FAIR policies per 100 housing units is stronger in high-fire-risk ZIP codes than in low-fire-risk ZIP codes.**
+
+This statement is false. Figure C1 shows that the slope between minority percentage and number of FAIR policies is quite similar for both high and low fire risk groups. The wide confidence interval (-0.012, 0.01) also suggests that it is difficult to precisely estimate the value of this interaction term. Thus, there is no obvious shift in the strength of the relationship between minority percentage and FAIR policies across fire risk levels.        
+
+### Statement D
+
+**Even without controlling for any other variables, income “explains away” all the association between minority percentage and FAIR policy uptake.**
+
+This statement is false. The regression tables under 'Income' show that the coefficient on minority remains largely unchanged, even after adjusting for family income. This means that income is a smaller confounder overall and a weaker predictor of FAIR policy number. Thus, it does not eliminate the correlation between minority percentage and policy uptake. 
+
+### Statement E
+
+**Minority percentage and number of FAIR policies are still associated at the ZIP code level, even after controlling for income, fire risk, and housing age.**
+
+This statement is true. The regression model under 'Multiple predictors' has a minority slope estimate of 0.008. This is within range of the confidence interval (0.003, 0.014) after controlling for other variables; because the standard error is low and zero is not a plausible value, the number of FAIR policies tends to increase with minority percentage. A p-value of 0.006 also indicates that it is unlikely there is no partial relationship between these two variables of interest.  
+
+
+
+
